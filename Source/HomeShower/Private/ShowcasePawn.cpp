@@ -47,13 +47,22 @@ void AShowcasePawn::SetupPlayerInputComponent( UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindKey(EKeys::E, IE_Repeat, this, &AShowcasePawn::ZoomOut);
 }
 
+void AShowcasePawn::PossessedBy( AController* NewController )
+{
+	Super::PossessedBy(NewController);
+
+	if ( auto* PC = Cast<APlayerController>(NewController) ) {
+		PC->bShowMouseCursor = true;
+	}
+}
+
 void AShowcasePawn::RefreshCamera()
 {
 	/* fixing ranges */
 	Pitch = FMath::Clamp(Pitch, -80, 10);
 	Yaw = FMath::Modulo(Yaw, 360);
 	CameraZoom = FMath::Clamp(CameraZoom, 0, 1);
-	
+
 	const auto rot = FRotator(Pitch, Yaw, 0);
 	SetActorRotation(rot);
 

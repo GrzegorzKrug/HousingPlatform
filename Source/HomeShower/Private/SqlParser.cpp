@@ -73,7 +73,7 @@ void USQL_Parser::CloseDatabase()
 // 	return {};
 // }
 
-bool USQL_Parser::MakeQuery( const FString& Query, FSQLiteResultSet*& Results )
+bool USQL_Parser::MakeQuery( const FString& Query, FDataBaseRecordSet*& Results ) const
 {
 	if ( !Database ) {
 		return false;
@@ -87,7 +87,7 @@ bool USQL_Parser::MakeQuery( const FString& Query, FSQLiteResultSet*& Results )
 	return true;
 }
 
-void USQL_Parser::GetInvestments( TArray<FInvestments>& )
+void USQL_Parser::GetInvestments( TArray<FInvestment>& Result ) const
 {
 	if ( !Database ) {
 		UE_LOGFMT(SQLParser, Warning, "Get Investment can not work on closed DB");
@@ -97,28 +97,57 @@ void USQL_Parser::GetInvestments( TArray<FInvestments>& )
 	const FString Query = TEXT(
 		R"(
 		SELECT
-			id,
-			name,
-			city,
-			address,
-			description,
-			currency
-		FROM investments
-		WHERE active = 1
-		ORDER BY id;
+			i.id,
+			i.name,
+			i.city,
+			i.address,
+			i.description,
+			i.currency,
+			i.active,
+			COUNT(b.id) AS buildings_count
+		FROM investments i
+		LEFT JOIN buildings b
+			ON b.investment_id = i.id
+			AND b.active = 1
+		WHERE i.active = 1
+		GROUP BY i.id
+		ORDER BY i.id;
 	)"
 	);
-	
-	FSQLiteResultSet* res = nullptr;
-	MakeQuery(Query, res);
 
-	if ( res ) {
+	FDataBaseRecordSet* Res = nullptr;
+	MakeQuery(Query, Res);
+
+	if ( Res ) {
 		UE_LOGFMT(SQLParser, Log, "Query was ok");
 	}
 	else {
 		UE_LOGFMT(SQLParser, Log, "Wrong query or something");
+		return;
 	}
 
+	Result.Empty();
+	Result.Reserve(Res->GetRecordCount());
+	for ( FDataBaseRecordSet::TIterator It(Res); It; ++It ) {
+		/**/
+		FInvestment inv;
+		inv.id = It->GetInt(TEXT("id"));
+		inv.active = It->GetInt(TEXT("active"));
+		inv.buildings = It->GetInt(TEXT("buildings_count"));
+
+		inv.name = It->GetString(TEXT("name"));
+		inv.city = It->GetString(TEXT("city"));
+		inv.address = It->GetString(TEXT("address"));
+
+		if ( inv.active <= 0 ) {
+			UE_LOGFMT(SQLParser, Error, "Ignoring invalid investment that is invalid");
+			continue;
+		}
+
+		Result.Add(inv);
+	}
+
+
 	/* Deallocation or nothing */
-	delete res;
+	delete Res;
 }

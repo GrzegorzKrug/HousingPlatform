@@ -15,8 +15,26 @@ DECLARE_LOG_CATEGORY_EXTERN(SQLParser, Verbose, Verbose);
 
 
 USTRUCT(BlueprintType)
-struct FInvestments {
+struct FInvestment {
 	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 id = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 buildings = 0;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString name;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString city;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FString address;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int active = 0;
 };
 
 
@@ -42,13 +60,13 @@ protected:
 
 	// bool Execute( const FString& Query );
 
-	bool MakeQuery( const FString& Query, FSQLiteResultSet*& Results );
+	bool MakeQuery( const FString& Query, FDataBaseRecordSet*& Results ) const;
 
 
 public:
 	/* Get list of all investments */
 	UFUNCTION(BlueprintCallable)
-	void GetInvestments( TArray<FInvestments>& Result );
+	void GetInvestments( TArray<FInvestment>& Result ) const;
 
 
 private:
