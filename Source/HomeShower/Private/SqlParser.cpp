@@ -151,3 +151,132 @@ void USQL_Parser::GetInvestments( TArray<FInvestment>& Result ) const
 	/* Deallocation or nothing */
 	delete Res;
 }
+
+void USQL_Parser::GetBuildings( int InvestmentId, TArray<FBuilding>& OutBuildings ) const
+{
+	OutBuildings.Empty();
+
+	if ( !Database ) {
+		UE_LOGFMT(SQLParser, Warning, "GetBuildings cannot work on closed DB");
+		return;
+	}
+
+
+	UE_LOGFMT(SQLParser, Log, "Query made for buildings in {0} investment", InvestmentId);
+	const FString Query = FString::Printf(
+		TEXT(
+			R"(
+		SELECT
+			b.id AS building_id,
+			b.name AS building_name,
+			b.code AS building_code,
+			b.floors_count,
+			b.order_number,
+
+			f.id AS flat_id,
+			f.name AS flat_name,
+			f.status_id as status_code,
+			f.entry_floor,
+			f.floor,
+			f.num_rooms,
+			f.area,
+			f.price,
+			f.price_sqm,
+			f.mesh_id,
+			f.description AS flat_description,
+
+			s.code AS status_code
+
+		FROM buildings b
+
+		LEFT JOIN flats f
+			ON f.building_id = b.id
+			AND f.active = 1
+
+		LEFT JOIN flat_statuses s
+			ON s.id = f.status_id
+
+		WHERE b.investment_id = %d
+			AND b.active = 1
+
+		ORDER BY
+			b.order_number,
+			b.id,
+			f.floor,
+			f.id;
+	)"
+		),
+		InvestmentId
+	);
+
+	FDataBaseRecordSet* Res = nullptr;
+	MakeQuery(Query, Res);
+
+	if ( !Res ) {
+		UE_LOGFMT(SQLParser, Warning, "Failed to get buildings for investment {InvestmentId}", InvestmentId);
+		return;
+	}
+
+	// int64 CurrentBuildingId = -1;
+	// int32 CurrentFloorNumber = -1;
+
+	TMap<int, FBuilding> BudMap;
+	// TSet<FFloor> FloorSet;
+
+	for ( FDataBaseRecordSet::TIterator It(Res); It; ++It ) {
+		FBuilding CheckBud{};
+		CheckBud.id = It->GetInt(TEXT("building_id"));
+		CheckBud.name = It->GetString(TEXT("building_name"));
+		// ThisBuilding-> = It->GetInt(TEXT("floors_count"));
+		// NewBuilding.OrderNumber = It->GetInt(TEXT("order_number"));
+
+		if ( !BudMap.Contains(CheckBud.id) ) {
+			BudMap.Add(CheckBud.id, CheckBud);
+		}
+		FBuilding& ThisBuilding = BudMap[CheckBud.id];
+
+		FFloor CheckFloor{};
+		// CheckFloor.FloorI = 1; /* miss understood */
+		CheckFloor.FloorI = It->GetInt(TEXT("floor"));
+
+		auto& Fl = ThisBuilding.Floors;
+		if ( !Fl.Contains(CheckFloor.FloorI) ) {
+			Fl.Add(CheckFloor.FloorI, CheckFloor);
+		}
+		FFloor& CurrentFloor = Fl[CheckFloor.FloorI];
+
+		FFlat CheckFlat{};
+		CheckFlat.id = It->GetInt(TEXT("flat_id"));
+		CheckFlat.Status = static_cast<EFlatStatus>(It->GetInt(TEXT("status_code")));
+		// auto Status = It->GetString(TEXT("status_code"));
+		CheckFlat.price = It->GetInt(TEXT("price"));
+		ensureAlways(!CurrentFloor.Flats.Contains(CheckFlat.id));
+
+		if ( CheckFlat.price > 0 ) {
+			ThisBuilding.MedPricePerSqm += CheckFlat.price;
+			ThisBuilding.priceCounter += 1;
+		}
+
+		/* Non shipping checks */
+		const auto val = static_cast<int>(CheckFlat.Status); /* 1-3 Mapped in dB */
+		ensureAlways(val>=1 && val<=3);
+
+		CurrentFloor.Flats.Add(CheckFlat.id, CheckFlat);
+		ThisBuilding.FlatCounter += 1;
+	}
+
+	for ( auto& pair : BudMap ) {
+		UE_LOGFMT(
+			SQLParser,
+			Log,
+			"Parsing zone: {0}, bud: {1}, has {2} flats",
+			InvestmentId,
+			pair.Value.id,
+			pair.Value.FlatCounter
+		);
+		pair.Value.MedPricePerSqm /= pair.Value.priceCounter;
+		OutBuildings.Add(pair.Value);
+	}
+
+	delete Res;
+}
