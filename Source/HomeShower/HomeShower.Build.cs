@@ -12,7 +12,6 @@ public class HomeShower : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"SQLiteCore",
 			"SQLiteSupport",
 		});
 

@@ -81,4 +81,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void ZoomOut();
+	
+	UFUNCTION(BlueprintCallable)
+	bool GetCursorDirection(FVector& Location,FVector& Direciton);
 };

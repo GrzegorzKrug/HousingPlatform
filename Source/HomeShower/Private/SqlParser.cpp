@@ -183,9 +183,7 @@ void USQL_Parser::GetBuildings( int InvestmentId, TArray<FBuilding>& OutBuilding
 			f.price,
 			f.price_sqm,
 			f.mesh_id,
-			f.description AS flat_description,
-
-			s.code AS status_code
+			f.description AS flat_description
 
 		FROM buildings b
 
@@ -250,6 +248,7 @@ void USQL_Parser::GetBuildings( int InvestmentId, TArray<FBuilding>& OutBuilding
 		CheckFlat.Status = static_cast<EFlatStatus>(It->GetInt(TEXT("status_code")));
 		// auto Status = It->GetString(TEXT("status_code"));
 		CheckFlat.price = It->GetInt(TEXT("price"));
+		CheckFlat.rooms = It->GetInt(TEXT("num_rooms"));
 		ensureAlways(!CurrentFloor.Flats.Contains(CheckFlat.id));
 
 		if ( CheckFlat.price > 0 ) {
@@ -269,10 +268,11 @@ void USQL_Parser::GetBuildings( int InvestmentId, TArray<FBuilding>& OutBuilding
 		UE_LOGFMT(
 			SQLParser,
 			Log,
-			"Parsing zone: {0}, bud: {1}, has {2} flats",
+			"Parsing zone: {0}, bud: {1}, has {2} flats. MedPrice: {3}",
 			InvestmentId,
 			pair.Value.id,
-			pair.Value.FlatCounter
+			pair.Value.FlatCounter,
+			pair.Value.MedPricePerSqm
 		);
 		pair.Value.MedPricePerSqm /= pair.Value.priceCounter;
 		OutBuildings.Add(pair.Value);

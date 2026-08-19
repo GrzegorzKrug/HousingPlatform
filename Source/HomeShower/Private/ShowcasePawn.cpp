@@ -113,3 +113,15 @@ void AShowcasePawn::ZoomOut()
 	CameraZoom += GetWorld()->GetDeltaSeconds() * ZoomSpeed;
 	RefreshCamera();
 }
+
+bool AShowcasePawn::GetCursorDirection( FVector& Loc, FVector& Dir )
+{
+	auto* PC = Cast<APlayerController>(GetOwner());
+	if ( !PC ) { return false; }
+
+	auto ret = PC->DeprojectMousePositionToWorld(Loc, Dir);
+	if ( !ret ) {
+		return false;
+	}
+	return true;
+}
